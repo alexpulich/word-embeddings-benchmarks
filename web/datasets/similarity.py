@@ -341,3 +341,59 @@ def fetch_TR9856():
     topic = data['topic'].values
 
     return Bunch(X=X.astype("object"), y=y, topic=topic)
+
+
+def fetch_TWS65():
+    """
+    added by Gerhard Wohlgenannt, (gwohlg@corp.ifmo.ru, wohlg@ai.wu.ac.at)
+    Get the TWS65 dataset for Thai language
+    The dataset is originally from this thesis: https://e-space.mmu.ac.uk/336070/
+    by Osathanunkul, Khukrit (2014)
+
+    The dataset is in Thai language (!) for the evaluation of Thai embedding models
+
+    Returns
+    -------
+    data : sklearn.datasets.base.Bunch
+        dictionary-like object. Keys of interest:
+        'X': matrix of 2 words per column,
+        'y': vector with scores,
+
+    References
+    ----------
+    Osathanunkul, Khukrit (2014) Semantic similarity framework for Thai conversational agents. Doctoral thesis (PhD), Manchester Metropolitan University.
+
+    """
+
+    print('start in')
+    data = _get_as_pd('https://www.dropbox.com/s/8mjypa8nij8i2sr/tws65.csv?dl=1',
+                      'similarity', header=None, sep=",").values
+
+    print(data)
+
+    return Bunch(X=data[:, 0:2].astype("object"),
+                 y=2 * data[:, 2].astype(np.float))
+
+
+def fetch_thai_wordsim353():
+    """
+    added by Gerhard Wohlgenannt, (gwohlg@corp.ifmo.ru, wohlg@ai.wu.ac.at), 2019
+    Get the WordSim-353 dataset for Thai language
+    
+    The dataset is in Thai language (!) for the evaluation of Thai embedding models
+
+    Returns
+    -------
+    data : sklearn.datasets.base.Bunch
+        dictionary-like object. Keys of interest:
+        'X': matrix of 2 words per column,
+        'y': vector with scores,
+
+    """
+    #data = _get_as_pd('https://www.dropbox.com/s/k9lxhiu8tubaqtu/wordsim353-thai.csv?dl=1',
+    data = _get_as_pd('https://www.dropbox.com/s/ozahl0884lbwnqi/wordsim353-v2.csv?dl=1',
+                      'similarity', header=None, sep=",").values
+
+    return Bunch(X=data[:, 0:2].astype("object"),
+                 y=2 * data[:, 2].astype(np.float))
+

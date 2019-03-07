@@ -11,6 +11,7 @@ from .datasets.categorization import fetch_AP, fetch_battig, fetch_BLESS, fetch_
 from web.analogy import *
 from six import iteritems
 from web.embedding import Embedding
+import deepcut # wohlg .. for Thai tokenization
 
 logger = logging.getLogger(__name__)
 
@@ -298,7 +299,7 @@ def evaluate_on_WordRep(w, max_pairs=1000, solver_kwargs={}):
                       pd.Series(count, name="count")], axis=1)
 
 
-def evaluate_similarity(w, X, y):
+def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_not_found=False):
     """
     Calculate Spearman correlation between cosine similarity of the model
     and human rated similarity of word pairs
@@ -314,6 +315,12 @@ def evaluate_similarity(w, X, y):
     y: vector, shape: (n_samples,)
       Human ratings
 
+    tokenize_oov_words_with_deepcut: 
+        if a thai word is not found in the embedding (OOV), tokenize it with deepcut, and try to use the sum vector of its parts?
+
+    filter_not_found:
+        remove a word pair if one of the words was not found in the embedding vocabulary
+
     Returns
     -------
     cor: float
@@ -322,21 +329,86 @@ def evaluate_similarity(w, X, y):
     if isinstance(w, dict):
         w = Embedding.from_dict(w)
 
-    missing_words = 0
+    missing_words, found_words, oov_vecs_created, index = 0, 0, 0, 0
+    bad_indices = []
+
     words = w.vocabulary.word_id
+
+    if tokenize_oov_words_with_deepcut:
+
+        # a) create set of OOV words in the dataset
+        dataset_words = set() 
+        for query in X:
+            for query_word in query:
+                if query_word not in words:
+                    dataset_words.add(query_word)
+
+        # b) iterate over OOV words and see if we can set a vector from them
+        for ds_word in dataset_words: 
+
+            tokens = deepcut.tokenize(ds_word)
+            in_voc_tokens = [tok for tok in tokens if tok in w]
+
+            ## if we found word-parts in the emb - use their vectors (avg)
+            if in_voc_tokens:
+                token_vecs = [w.get(t) for t in in_voc_tokens]
+                w[ds_word] = np.mean(token_vecs,axis=0)
+                print("Created vector for OOV word:", ds_word)
+                oov_vecs_created += 1 
+
+
+
+
     for query in X:
         for query_word in query:
+
             if query_word not in words:
+                print("Missing Word:", query_word)
                 missing_words += 1
-    if missing_words > 0:
+                bad_indices.append(index)
+            else:
+                print("Found Word:", query_word)
+                found_words += 1
+        index += 1
+
+    print('bad_indices', bad_indices)
+
+    if missing_words > 0 or oov_vecs_created > 0:
         logger.warning("Missing {} words. Will replace them with mean vector".format(missing_words))
+        logger.warning("OOV words {} created from their subwords. Will replace them with mean vector of sub-tokens".format(oov_vecs_created))
+        logger.warning("Found {} words.".format(found_words))
+
+    print('X.shape', X.shape)
+    print('y.shape', y.shape)
 
 
-    mean_vector = np.mean(w.vectors, axis=0, keepdims=True)
-    A = np.vstack(w.get(word, mean_vector) for word in X[:, 0])
-    B = np.vstack(w.get(word, mean_vector) for word in X[:, 1])
-    scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
-    return scipy.stats.spearmanr(scores, y).correlation
+    if filter_not_found:
+        # added code by wohlg
+        new_X = np.delete(X, bad_indices, 0)
+        #print(new_X)
+        new_y = np.delete(y, bad_indices)
+
+        print('new_X.shape', new_X.shape)
+        print('new_y.shape', new_y.shape)
+
+        mean_vector = np.mean(w.vectors, axis=0, keepdims=True)
+        A = np.vstack(w.get(word, mean_vector) for word in new_X[:, 0])
+        B = np.vstack(w.get(word, mean_vector) for word in new_X[:, 1])
+        print(len(A), len(B))
+        print(type(A),type(B))
+        scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
+
+        return scipy.stats.spearmanr(scores, new_y).correlation
+
+    else:
+        # orig code
+        mean_vector = np.mean(w.vectors, axis=0, keepdims=True)
+
+        A = np.vstack(w.get(word, mean_vector) for word in X[:, 0])
+        B = np.vstack(w.get(word, mean_vector) for word in X[:, 1])
+        scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
+
+        return scipy.stats.spearmanr(scores, y).correlation
 
 
 def evaluate_on_all(w):
