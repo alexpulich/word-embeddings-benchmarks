@@ -1,3 +1,20 @@
+Word Embeddings Benchmarks -- for Thai datasets
+=====
+
+This is a fork, with the goal to provide an easy way to evaluate Thai word embeddings with new word similarity datasets.
+The accompanying publication which describes the new Thai datasets is currently under review.
+The Thai datasets are translations of popular existing datasets: WordSim-353, SimLex-999 and the dataset from SemEval 2017 (task 2).
+The task is **word similarity**, which is often used for intrinsic evaluation of word embedding models.
+In the fork we added Spearman rho as additional evaluation measure, and added the option to tokenize 
+out-of-vocabulary words with the `deepcut` library.
+
+To evaluate your own Thai word embedding file, please the path to your model into `examples/call_thai.sh`, and then call the script::
+    bash examples/call_thai.sh  
+
+Below please find the description of the original repository by **kudkudak**, which includes general info,
+info on installation, etc.
+
+
 Word Embeddings Benchmarks
 =====
 
