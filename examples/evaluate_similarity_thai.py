@@ -6,7 +6,7 @@
 import logging, sys
 from six import iteritems
 from web.datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999
-from web.datasets.similarity import fetch_TWS65, fetch_thai_wordsim353 
+from web.datasets.similarity import fetch_TWS65, fetch_thai_wordsim353, fetch_thai_semeval2017_task2, fetch_thai_simlex999
 from web.embeddings import load_embedding
 from web.evaluate import evaluate_similarity
 
@@ -37,7 +37,9 @@ tasks = {
         #"WS353": fetch_WS353(),
         #"SIMLEX999": fetch_SimLex999(),
     "TWS65": fetch_TWS65(),
-    "T-WS353": fetch_thai_wordsim353()
+    "TH-WS353": fetch_thai_wordsim353(),
+    "TH-SemEval2017T2": fetch_thai_semeval2017_task2(),
+    "TH-SimLex999": fetch_thai_simlex999()
 }
 
 # Print sample data
@@ -46,7 +48,9 @@ for name, data in iteritems(tasks):
 
 # Calculate results using helper function
 for name, data in iteritems(tasks):
-    print("Spearman correlation of scores on {} {}".format(name, evaluate_similarity(w, data.X, data.y, 
-                                                           tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT, 
-                                                           filter_not_found=FILTER_NOT_FOUND)))
+    spearman_r, pearson_r = evaluate_similarity(w, data.X, data.y, tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT, 
+                                                           filter_not_found=FILTER_NOT_FOUND)
+    print("Spearman and Pearson correlation of scores on {} {} {}".format(name, round(spearman_r,3), round(pearson_r,3)))
+
+
 
