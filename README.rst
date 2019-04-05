@@ -11,22 +11,15 @@ out-of-vocabulary words with the `deepcut` library.
 To evaluate your own Thai word embedding file, please the path to your model into `examples/call_thai.sh`, and then call the script::
     bash examples/call_thai.sh  
 
-Please cite our work, currently with:
-TODO .. add bibtex from arxiv submission
-
-https://github.com/ralsina/rst-cheatsheet/blob/master/rst-cheatsheet.rst
-We have a paper only review:
-:Authors:
-    Tony J. (Tibs) Ibbs,
-    David Goodger
-
-:Version: 1.0 of 2001/08/08
-:Dedication: To my father.
-
+The datasets were created by KMITL University, Ladkrabang, Thailand (Dr. Ponrudee Netisopakul) together with ITMO University, St. Petersburg, Russia (Dr. Gerhard Wohlgenannt,
+Aleksei Pulich).
+Please cite our work:
+    P. Netisopakul, G. Wohlgenannt and A. Pulich, Word Similarity Datasets for Thai: Construction and Evaluation, IEEE Access, 2019, under review
 
 
 Below please find the description of the original repository by **kudkudak**, which includes general info,
 info on installation, etc.
+
 
 
 Word Embeddings Benchmarks
