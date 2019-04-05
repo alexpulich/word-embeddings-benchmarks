@@ -8,7 +8,7 @@ The task is **word similarity**, which is often used for intrinsic evaluation of
 In the fork we added Spearman rho as additional evaluation measure, and added the option to tokenize 
 out-of-vocabulary words with the `deepcut` library.
 
-To evaluate your own Thai word embedding file, please the path to your model into `examples/call_thai.sh`, and then call the script::
+To evaluate your own Thai word embedding file, please the path to your model into ``examples/call_thai.sh``, and then call the script::
 
     bash examples/call_thai.sh
 
