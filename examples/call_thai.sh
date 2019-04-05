@@ -1,8 +1,12 @@
 # argv: embeddingfile   -   emb_format  - TOKENIZE_OOV_WORDS_WITH_DEEPCUT (default:False)  -  FILTER_NOT_FOUND (default: False)
 
-# to evaluate your own model, fill in and uncomment:
-# you only need to change this next line
-EMB=path-to-the-embedding-model
+if [ $# -eq 0 ]
+  then
+    echo "Wrong usage. Please, pass the path to the embeddings."
+    echo "./call_thai.sh <some_path>"
+    exit 1
+fi
+EMB=$1
 
 ################################################################################################################################
 
