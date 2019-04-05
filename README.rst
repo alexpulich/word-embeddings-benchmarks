@@ -1,4 +1,4 @@
-Word Embeddings Benchmarks -- for Thai datasets
+Word Embeddings Benchmarks - for Thai datasets
 =====
 
 This is a fork, with the goal to provide an easy way to evaluate Thai word embeddings with new word similarity datasets.
