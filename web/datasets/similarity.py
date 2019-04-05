@@ -365,11 +365,8 @@ def fetch_TWS65():
 
     """
 
-    print('start in')
-    data = _get_as_pd('https://www.dropbox.com/s/8mjypa8nij8i2sr/tws65.csv?dl=1',
+    data = _get_as_pd('https://www.dropbox.com/s/znfhc5icejs607j/tws65.csv?dl=1',
                       'similarity', header=None, sep=",").values
-
-    print(data)
 
     return Bunch(X=data[:, 0:2].astype("object"),
                  y=2 * data[:, 2].astype(np.float))
@@ -390,10 +387,58 @@ def fetch_thai_wordsim353():
         'y': vector with scores,
 
     """
-    #data = _get_as_pd('https://www.dropbox.com/s/k9lxhiu8tubaqtu/wordsim353-thai.csv?dl=1',
-    data = _get_as_pd('https://www.dropbox.com/s/ozahl0884lbwnqi/wordsim353-v2.csv?dl=1',
+    data = _get_as_pd('https://www.dropbox.com/s/tutw8w57g4i3wzv/thai-wordsim353-v2.csv?dl=1',
                       'similarity', header=None, sep=",").values
 
     return Bunch(X=data[:, 0:2].astype("object"),
                  y=2 * data[:, 2].astype(np.float))
+
+
+def fetch_thai_semeval2017_task2():
+    """
+    added by Gerhard Wohlgenannt, (gwohlg@corp.ifmo.ru, wohlg@ai.wu.ac.at), 2019
+    Get the SemEval2017-Task2 dataset for Thai language
+    
+    The dataset is in Thai language (!) for the evaluation of Thai embedding models
+
+    Returns
+    -------
+    data : sklearn.datasets.base.Bunch
+        dictionary-like object. Keys of interest:
+        'X': matrix of 2 words per column,
+        'y': vector with scores,
+
+    """
+    data = _get_as_pd('https://www.dropbox.com/s/luutmiis9r2gkra/thaiSemEval2017-500-v2.csv?dl=1', # semeval 2017 task 2 -- thai versin
+                      'similarity', header=None, sep=",").values
+
+    return Bunch(X=data[:, 0:2].astype("object"),
+                 y=2 * data[:, 2].astype(np.float))
+
+
+def fetch_thai_simlex999():
+    """
+    added by Gerhard Wohlgenannt, (gwohlg@corp.ifmo.ru, wohlg@ai.wu.ac.at), 2019
+    Get the SemEval2017-Task2 dataset for Thai language
+    
+    The dataset is in Thai language (!) for the evaluation of Thai embedding models
+
+    Returns
+    -------
+    data : sklearn.datasets.base.Bunch
+        dictionary-like object. Keys of interest:
+        'X': matrix of 2 words per column,
+        'y': vector with scores,
+
+    """
+    data = _get_as_pd('https://www.dropbox.com/s/w7wkisz9ngcf845/thaiSimLex-999-v2.csv?dl=1', # SimLex-999 -- thai version
+                      'similarity', header=None, sep=",").values
+
+    return Bunch(X=data[:, 0:2].astype("object"),
+                 y=2 * data[:, 2].astype(np.float))
+
+
+
+
+
 

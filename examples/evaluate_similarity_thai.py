@@ -4,6 +4,7 @@
  Simple example showing evaluating embedding on similarity datasets
 """
 import logging, sys
+import scipy.stats
 from six import iteritems
 from web.datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999
 from web.datasets.similarity import fetch_TWS65, fetch_thai_wordsim353, fetch_thai_semeval2017_task2, fetch_thai_simlex999
@@ -46,11 +47,32 @@ tasks = {
 for name, data in iteritems(tasks):
     print("Sample data from {}: pair \"{}\" and \"{}\" is assigned score {}".format(name, data.X[0][0], data.X[0][1], data.y[0]))
 
-# Calculate results using helper function
+# Calculate results using helper function for the various word similarity datasets
 for name, data in iteritems(tasks):
-    spearman_r, pearson_r = evaluate_similarity(w, data.X, data.y, tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT, 
+    print("\n", "NEW TASK:", name)
+    result = evaluate_similarity(w, data.X, data.y, tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT, 
                                                            filter_not_found=FILTER_NOT_FOUND)
-    print("Spearman and Pearson correlation of scores on {} {} {}".format(name, round(spearman_r,3), round(pearson_r,3)))
 
+    hm = scipy.stats.hmean([result['spearmanr'], result['pearsonr']])
+    perc_oov_words = 100 * (result['num_missing_words'] / (result['num_found_words'] + float(result['num_missing_words'])))
+ 
+    print('num_found_words and num_missing_words are just the plain counts in the datasets')
+    print('num_oov_created is the set of words created/replace with a new vectors (based on tokenization with deepcut)')
+    print("""Dataset {:17}: Spearman/Pearson/HarmMean: {:4.3f} {:4.3f} {:4.3f}, OOV-word-pairs: {:4d}, perc_oov_words: {:3.1f}, num_found_words: {:4d}, num_missing_words: {:4d}, num_oov_created: {:4d}, y.shape: {}""".format(name, 
+          round(result['spearmanr'],3), 
+          round(result['pearsonr'],3),
+          hm,
+          result['num_oov_word_pairs'],
+          perc_oov_words,
+          result['num_found_words'],
+          result['num_missing_words'],
+          result['num_oov_created'],
+          str(result['y.shape'])
+    ))
 
+    ## for using in the paper -- LaTeX output
+    print('LaTeX 1 out: DS: {:17}: {:4.3f}~~{:4.3f}~~{:4.3f} & {:3.1f}~~{:4d} &'.format(name, round(result['spearmanr'],3), round(result['pearsonr'],3), hm, perc_oov_words, result['num_oov_word_pairs']))
+
+    ## pairs left
+    print('LaTeX 2 out: DS: {:17}: {:4.3f}~~{:4.3f}~~{:4.3f} & {:3.1f}~~{:4d} &'.format(name, round(result['spearmanr'],3), round(result['pearsonr'],3), hm, perc_oov_words, result['y.shape'][0]))
 

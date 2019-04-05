@@ -11,6 +11,20 @@ out-of-vocabulary words with the `deepcut` library.
 To evaluate your own Thai word embedding file, please the path to your model into `examples/call_thai.sh`, and then call the script::
     bash examples/call_thai.sh  
 
+Please cite our work, currently with:
+TODO .. add bibtex from arxiv submission
+
+https://github.com/ralsina/rst-cheatsheet/blob/master/rst-cheatsheet.rst
+We have a paper only review:
+:Authors:
+    Tony J. (Tibs) Ibbs,
+    David Goodger
+
+:Version: 1.0 of 2001/08/08
+:Dedication: To my father.
+
+
+
 Below please find the description of the original repository by **kudkudak**, which includes general info,
 info on installation, etc.
 
