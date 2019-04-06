@@ -12,7 +12,7 @@ First, please follow the installation guide from the original repo which is dupl
 Then execute following commands to evaluate your own Thai word embedding file::
 
 	cd examples
-    bash call_thai.sh <path_to_your_embedding_file>
+        bash call_thai.sh <path_to_your_embedding_file>
 
 
 The datasets were created by KMITL University, Ladkrabang, Thailand (Dr. Ponrudee Netisopakul) together with ITMO University, St. Petersburg, Russia (Dr. Gerhard Wohlgenannt,
