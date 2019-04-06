@@ -10,9 +10,10 @@ out-of-vocabulary words with the `deepcut` library.
 
 First, please follow the installation guide from the original repo which is duplicated below as well.
 Then execute following commands to evaluate your own Thai word embedding file::
+
 	cd examples
-	chmod +x call_thai.sh
-    	bash examples/call_thai.sh <path_to_your_embedding_file>
+    bash call_thai.sh <path_to_your_embedding_file>
+
 
 The datasets were created by KMITL University, Ladkrabang, Thailand (Dr. Ponrudee Netisopakul) together with ITMO University, St. Petersburg, Russia (Dr. Gerhard Wohlgenannt,
 Aleksei Pulich).
