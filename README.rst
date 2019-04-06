@@ -17,7 +17,7 @@ Then execute following commands to evaluate your own Thai word embedding file::
 
 The datasets were created by KMITL University, Ladkrabang, Thailand (Dr. Ponrudee Netisopakul) together with ITMO University, St. Petersburg, Russia (Dr. Gerhard Wohlgenannt,
 Aleksei Pulich).
-Please cite our work:
+Please cite our work::
 
     P. Netisopakul, G. Wohlgenannt and A. Pulich, Word Similarity Datasets for Thai: Construction and Evaluation, IEEE Access, 2019, under review
 
