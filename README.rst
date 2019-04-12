@@ -20,7 +20,8 @@ Aleksei Pulich).
 Please cite our work:
 
     P. Netisopakul, G. Wohlgenannt and A. Pulich, Word Similarity Datasets for Thai: Construction and Evaluation, IEEE Access, 2019, under review
-    The preprint is found here: `https://arxiv.org/abs/1904.04307 https://arxiv.org/abs/1904.04307`_.
+
+    The preprint is found here: `https://arxiv.org/abs/1904.04307`.
 
 
 Below please find the description of the original repository by **kudkudak**, which includes general info,
