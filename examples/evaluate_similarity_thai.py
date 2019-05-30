@@ -53,7 +53,10 @@ for name, data in iteritems(tasks):
     result = evaluate_similarity(w, data.X, data.y, tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT, 
                                                            filter_not_found=FILTER_NOT_FOUND)
 
-    hm = scipy.stats.hmean([result['spearmanr'], result['pearsonr']])
+    try:
+        hm = scipy.stats.hmean([result['spearmanr'], result['pearsonr']])
+    except:
+        hm = -999 ## undefined
     perc_oov_words = 100 * (result['num_missing_words'] / (result['num_found_words'] + float(result['num_missing_words'])))
  
     print('num_found_words and num_missing_words are just the plain counts in the datasets')
