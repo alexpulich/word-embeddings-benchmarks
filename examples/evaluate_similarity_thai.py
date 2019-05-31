@@ -35,12 +35,12 @@ w = load_embedding(fname, format=format, normalize=True, lower=False, clean_word
 # Define tasks
 tasks = {
     #"MEN": fetch_MEN(),
-        #"WS353": fetch_WS353(),
-        #"SIMLEX999": fetch_SimLex999(),
-    "TWS65": fetch_TWS65(),
+    #"WS353": fetch_WS353(),
+    #"SIMLEX999": fetch_SimLex999(),
     "TH-WS353": fetch_thai_wordsim353(),
     "TH-SemEval2017T2": fetch_thai_semeval2017_task2(),
-    "TH-SimLex999": fetch_thai_simlex999()
+    "TH-SimLex999": fetch_thai_simlex999(),
+    "TWS65": fetch_TWS65()
 }
 
 # Print sample data
@@ -48,6 +48,7 @@ for name, data in iteritems(tasks):
     print("Sample data from {}: pair \"{}\" and \"{}\" is assigned score {}".format(name, data.X[0][0], data.X[0][1], data.y[0]))
 
 # Calculate results using helper function for the various word similarity datasets
+latex1, latex2 = '',''
 for name, data in iteritems(tasks):
     print("\n", "NEW TASK:", name)
     result = evaluate_similarity(w, data.X, data.y, tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT, 
@@ -74,8 +75,31 @@ for name, data in iteritems(tasks):
     ))
 
     ## for using in the paper -- LaTeX output
-    print('LaTeX 1 out: DS: {:17}: {:4.3f}~~{:4.3f}~~{:4.3f} & {:3.1f}~~{:4d} &'.format(name, round(result['spearmanr'],3), round(result['pearsonr'],3), hm, perc_oov_words, result['num_oov_word_pairs']))
+    latex1 += '{:4.3f}~~{:4.3f}~~{:4.3f}          & {:3.1f}~~{:3d}  & '.format(round(result['spearmanr'],3), round(result['pearsonr'],3), hm, perc_oov_words, result['num_oov_word_pairs'])
 
     ## pairs left
-    print('LaTeX 2 out: DS: {:17}: {:4.3f}~~{:4.3f}~~{:4.3f} & {:3.1f}~~{:4d} &'.format(name, round(result['spearmanr'],3), round(result['pearsonr'],3), hm, perc_oov_words, result['y.shape'][0]))
+    latex2 += '{:4.3f}~~{:4.3f}~~{:4.3f}          & {:3.1f}~~{:3d}  & '.format(round(result['spearmanr'],3), round(result['pearsonr'],3), hm, perc_oov_words, result['y.shape'][0])
+
+
+## print final latex string
+print('{:17} & {} \\\\  % LaTeX 1 for Table 1 and 2'.format(fname, latex1[:-2]))
+## pairs left
+print('{:17} & {} \\\\  % LaTeX 2 for Table 3 and 4'.format(fname, latex2[:-2]))
+
+
+#      Kyu-w2v            & 0.252~~0.193~~0.219          & 38.5~~217 & 0.234~~0.220~~0.227          & 48.6~~351 & 0.263~~0.296~~0.278          & 31.6~~502   &   0.497~~0.481~~0.489           & 30.8~~34 \\ 
+#      
+# bpemb.1000.300.txt TWS65            : 0.124~~0.126~~0.125 & 0.0~~   0 &
+# bpemb.1000.300.txt TH-WS353         : 0.237~~0.272~~0.253 & 0.1~~   1 &
+# bpemb.1000.300.txt TH-SemEval2017T2 : 0.309~~0.349~~0.328 & 0.4~~   3 &
+# bpemb.1000.300.txt TH-SimLex999     : 0.309~~0.436~~0.361 & 0.0~~   0 &
+
+
+
+
+
+
+
+
+
 
