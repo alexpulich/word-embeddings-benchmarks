@@ -433,27 +433,31 @@ def evaluate_similarity(w, X, y,
     wordnet_oov = 0
     if include_structured_sources:
         from pythainlp.corpus import wordnet
-        new_scores = []
-        new_y = []
+        wn_scores = []
         for index, pair in enumerate(pairs):
             w1 = wordnet.synsets(pair[0])
             w2 = wordnet.synsets(pair[1])
             if len(w1) > 0 and len(w2) > 0:
                 path = wordnet.path_similarity(w1[0], w2[0])
-                # if path is None:
-                #     new_scores.append(structed_sources_coef * scores[index])
-                # else:
-                if path is not None:
-                    new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
-                    new_y.append(y[index])
-            # else:
-            #     if len(w1) == 0:
-            #         wordnet_oov += 1
-            #     if len(w2) == 0:
-            #         wordnet_oov += 1
-            #     new_scores.append(scores[index])
+                wn_scores.append(path)
+            else:
+                wn_scores.append(None)
+                if len(w1) == 0:
+                    wordnet_oov += 1
+                if len(w2) == 0:
+                    wordnet_oov += 1
+
+        wn_mean = np.mean(np.array([wn_score for wn_score in wn_scores if wn_score is not None]))
+        new_scores = []
+        for index, pair in enumerate(pairs):
+            if wn_scores[index] is None:
+                path = wn_mean
+            else:
+                path = wn_scores[index]
+
+            new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
+
         scores = np.array(new_scores)
-        y = np.array(new_y)
 
     # wohlg: original version only returned Spearman
     # wohlg: we added Pearson and other information
