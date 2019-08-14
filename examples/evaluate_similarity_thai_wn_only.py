@@ -13,11 +13,6 @@ from web.datasets.similarity import fetch_TWS65, fetch_thai_wordsim353, fetch_th
 from web.embeddings import load_embedding
 from web.evaluate import evaluate_similarity
 
-fname = sys.argv[1]  # path to the embedding file
-format = sys.argv[2]  # see ../scripts/evaluate_on_all.py for formats
-struct_info = sys.argv[5]
-
-
 def toBool(para):
     if para == 'True':
         return True
@@ -33,13 +28,9 @@ TOKENIZE_OOV_WORDS_WITH_DEEPCUT = toBool(sys.argv[3])
 # remove a word pair if one of the words was not found in the embedding vocabulary
 FILTER_NOT_FOUND = toBool(sys.argv[4])
 
-INCLUDE_STRUCTED_INFO = toBool(struct_info)
-
 # Configure logging
 logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', level=logging.DEBUG, datefmt='%I:%M:%S')
 
-# w = load_embedding(fname, format=format, normalize=True, lower=True, clean_words=False, load_kwargs={})
-w = load_embedding(fname, format=format, normalize=True, lower=False, clean_words=False, load_kwargs={})
 
 # Define tasks
 tasks = {
@@ -61,37 +52,19 @@ for name, data in iteritems(tasks):
 latex1, latex2 = '', ''
 for name, data in iteritems(tasks):
     print("\n", "NEW TASK:", name)
-    if INCLUDE_STRUCTED_INFO:
-        results = []
-        # for coef in np.arange(0.05, 1.0, 0.05):
-        for coef in (0,):
-            result = evaluate_similarity(w, data.X, data.y,
-                                         tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT,
-                                         filter_not_found=FILTER_NOT_FOUND,
-                                         include_structured_sources=INCLUDE_STRUCTED_INFO,
-                                         structed_sources_coef=coef)
-            result['coef'] = coef
-            try:
-                result['hm'] = scipy.stats.hmean([result['spearmanr'], result['pearsonr']])
-            except:
-                result['hm'] = -999  ## undefined
-            results.append(result)
 
-        result = max(results, key=lambda x: x['hm'])
-        hm = result['hm']
-        print('BEST COEF: {}'.format(result['coef']))
-        print('WORDNET OOV : {}'.format(result['wordnet_oov']))
-
-    else:
-        result = evaluate_similarity(w, data.X, data.y, tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT,
+    result = evaluate_similarity_wn(w, data.X, data.y,
+                                     tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT,
                                      filter_not_found=FILTER_NOT_FOUND,
                                      include_structured_sources=INCLUDE_STRUCTED_INFO,
                                      structed_sources_coef=coef)
+    try:
+        result['hm'] = scipy.stats.hmean([result['spearmanr'], result['pearsonr']])
+    except:
+        result['hm'] = -999  ## undefined
+    hm = result['hm']
+    print('WORDNET OOV : {}'.format(result['wordnet_oov']))
 
-        try:
-            hm = scipy.stats.hmean([result['spearmanr'], result['pearsonr']])
-        except:
-            hm = -999  ## undefined
     perc_oov_words = 100 * (
                 result['num_missing_words'] / (result['num_found_words'] + float(result['num_missing_words'])))
 

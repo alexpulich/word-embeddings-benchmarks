@@ -300,7 +300,11 @@ def evaluate_on_WordRep(w, max_pairs=1000, solver_kwargs={}):
                       pd.Series(count, name="count")], axis=1)
 
 
-def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_not_found=False):
+def evaluate_similarity(w, X, y,
+                        tokenize_oov_words_with_deepcut=False,
+                        filter_not_found=False,
+                        include_structured_sources=False,
+                        structed_sources_coef=0):
     """
     Calculate Spearman correlation between cosine similarity of the model
     and human rated similarity of word pairs
@@ -316,7 +320,7 @@ def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_n
     y: vector, shape: (n_samples,)
       Human ratings
 
-    tokenize_oov_words_with_deepcut: 
+    tokenize_oov_words_with_deepcut:
         if a thai word is not found in the embedding (OOV), tokenize it with deepcut, and try to use the sum vector of its parts?
 
     filter_not_found:
@@ -335,7 +339,7 @@ def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_n
     word_pair_oov_indices = []
     info_oov_words = {}
     info_created_words = {}
-    
+
 
     words = w.vocabulary.word_id
 
@@ -343,14 +347,14 @@ def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_n
     if tokenize_oov_words_with_deepcut:
 
         # a) create set of OOV words in the dataset
-        oov_words = set() 
+        oov_words = set()
         for query in X:
             for query_word in query:
                 if query_word not in words:
                     oov_words.add(query_word)
 
         # b) iterate over OOV words and see if we can set a vector from them
-        for ds_word in oov_words: 
+        for ds_word in oov_words:
 
             tokens = deepcut.tokenize(ds_word)
             in_voc_tokens = [tok for tok in tokens if tok in w]
@@ -360,8 +364,8 @@ def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_n
                 token_vecs = [w.get(t) for t in in_voc_tokens]
                 w[ds_word] = np.mean(token_vecs,axis=0)
                 #print("Created vector for OOV word:", ds_word)
-                oov_vecs_created += 1 
-                info_created_words[ds_word] = in_voc_tokens 
+                oov_vecs_created += 1
+                info_created_words[ds_word] = in_voc_tokens
             else:
                 info_oov_words[ds_word] = tokens
 
@@ -371,7 +375,7 @@ def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_n
         pprint(info_created_words)
 
 
-    ## For all words in the datasets, check if the are OOV? 
+    ## For all words in the datasets, check if the are OOV?
     ## Indices of word-pairs with a OOV word are stored in word_pair_oov_indices
     for query in X:
         for query_word in query:
@@ -414,8 +418,7 @@ def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_n
         scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
 
         y = new_y
-
-
+        pairs = new_X
 
     else:
         # orig code
@@ -424,10 +427,36 @@ def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_n
         A = np.vstack(w.get(word, mean_vector) for word in X[:, 0])
         B = np.vstack(w.get(word, mean_vector) for word in X[:, 1])
         scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
+        pairs = X
 
+    # alexpulich:
+    wordnet_oov = 0
+    if include_structured_sources:
+        from pythainlp.corpus import wordnet
+        new_scores = []
+        new_y = []
+        for index, pair in enumerate(pairs):
+            w1 = wordnet.synsets(pair[0])
+            w2 = wordnet.synsets(pair[1])
+            if len(w1) > 0 and len(w2) > 0:
+                path = wordnet.path_similarity(w1[0], w2[0])
+                # if path is None:
+                #     new_scores.append(structed_sources_coef * scores[index])
+                # else:
+                if path is not None:
+                    new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
+                    new_y.append(y[index])
+            # else:
+            #     if len(w1) == 0:
+            #         wordnet_oov += 1
+            #     if len(w2) == 0:
+            #         wordnet_oov += 1
+            #     new_scores.append(scores[index])
+        scores = np.array(new_scores)
+        y = np.array(new_y)
 
-    # wohlg: original version only returned Spearman 
-    # wohlg: we added Pearson and other information 
+    # wohlg: original version only returned Spearman
+    # wohlg: we added Pearson and other information
     result = {'spearmanr': scipy.stats.spearmanr(scores, y).correlation,
               'pearsonr':  scipy.stats.pearsonr(scores, y)[0],
               'num_oov_word_pairs': len(word_pair_oov_indices),
@@ -437,8 +466,170 @@ def evaluate_similarity(w, X, y, tokenize_oov_words_with_deepcut=False, filter_n
               'y.shape': y.shape
               }
 
+    if include_structured_sources:
+        result['wordnet_oov'] = wordnet_oov
+
     return result
-          
+
+
+def evaluate_similarity_wn(X, y,
+                        tokenize_oov_words_with_deepcut=False,
+                        filter_not_found=False):
+    """
+    Calculate Spearman correlation between cosine similarity of the model
+    and human rated similarity of word pairs
+
+    Parameters
+    ----------
+    X: array, shape: (n_samples, 2)
+      Word pairs
+
+    y: vector, shape: (n_samples,)
+      Human ratings
+
+    tokenize_oov_words_with_deepcut:
+        if a thai word is not found in the embedding (OOV), tokenize it with deepcut, and try to use the sum vector of its parts?
+
+    filter_not_found:
+        remove a word pair if one of the words was not found in the embedding vocabulary
+
+    Returns
+    -------
+    cor: float
+      Spearman correlation
+    """
+
+    missing_words, found_words, oov_vecs_created, index = 0, 0, 0, 0
+    word_pair_oov_indices = []
+    info_oov_words = {}
+    info_created_words = {}
+
+
+    words = w.vocabulary.word_id
+
+    ## NEW: use deepcut to create word vectors of word parts -- if possible
+    if tokenize_oov_words_with_deepcut:
+
+        # a) create set of OOV words in the dataset
+        oov_words = set()
+        for query in X:
+            for query_word in query:
+                if query_word not in words:
+                    oov_words.add(query_word)
+
+        # b) iterate over OOV words and see if we can set a vector from them
+        for ds_word in oov_words:
+
+            tokens = deepcut.tokenize(ds_word)
+            in_voc_tokens = [tok for tok in tokens if tok in w]
+
+            ## if we found word-parts in the emb - use their vectors (avg) to represent the OOV word
+            if in_voc_tokens:
+                token_vecs = [w.get(t) for t in in_voc_tokens]
+                w[ds_word] = np.mean(token_vecs,axis=0)
+                #print("Created vector for OOV word:", ds_word)
+                oov_vecs_created += 1
+                info_created_words[ds_word] = in_voc_tokens
+            else:
+                info_oov_words[ds_word] = tokens
+
+        print('All OOV words after deepcut:')
+        pprint(info_oov_words)
+        print('All "created"/replaced words by deepcut:')
+        pprint(info_created_words)
+
+
+    ## For all words in the datasets, check if the are OOV?
+    ## Indices of word-pairs with a OOV word are stored in word_pair_oov_indices
+    for query in X:
+        for query_word in query:
+
+            if query_word not in words:
+                print("Missing Word:", query_word)
+                missing_words += 1
+                word_pair_oov_indices.append(index)
+            else:
+                print("Found Word:", query_word)
+                found_words += 1
+        index += 1
+
+    word_pair_oov_indices = list(set(word_pair_oov_indices))
+    print('word_pair_oov_indices', word_pair_oov_indices)
+
+    if missing_words > 0 or oov_vecs_created > 0:
+        logger.warning("Missing {} words. Will replace them with mean vector".format(missing_words))
+        logger.warning("OOV words {} created from their subwords. Will replace them with mean vector of sub-tokens".format(oov_vecs_created))
+        logger.warning("Found {} words.".format(found_words))
+
+    print('X.shape', X.shape)
+    print('y.shape', y.shape)
+
+
+    if filter_not_found:
+        # added code by wohlg
+        new_X = np.delete(X, word_pair_oov_indices, 0)
+        #print(new_X)
+        new_y = np.delete(y, word_pair_oov_indices)
+
+        print('new_X.shape', new_X.shape)
+        print('new_y.shape', new_y.shape)
+
+        mean_vector = np.mean(w.vectors, axis=0, keepdims=True)
+        A = np.vstack(w.get(word, mean_vector) for word in new_X[:, 0])
+        B = np.vstack(w.get(word, mean_vector) for word in new_X[:, 1])
+        print(len(A), len(B))
+        print(type(A),type(B))
+        scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
+
+        y = new_y
+        pairs = new_X
+
+    else:
+        # orig code
+        mean_vector = np.mean(w.vectors, axis=0, keepdims=True)
+
+        A = np.vstack(w.get(word, mean_vector) for word in X[:, 0])
+        B = np.vstack(w.get(word, mean_vector) for word in X[:, 1])
+        scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
+        pairs = X
+
+    # alexpulich:
+    wordnet_oov = 0
+    if include_structured_sources:
+        from pythainlp.corpus import wordnet
+        new_scores = []
+        for index, pair in enumerate(pairs):
+            w1 = wordnet.synsets(pair[0])
+            w2 = wordnet.synsets(pair[1])
+            if len(w1) > 0 and len(w2) > 0:
+                path = wordnet.path_similarity(w1[0], w2[0])
+                if path is None:
+                    new_scores.append(structed_sources_coef * scores[index])
+                else:
+                    new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
+            else:
+                if len(w1) == 0:
+                    wordnet_oov += 1
+                if len(w2) == 0:
+                    wordnet_oov += 1
+                new_scores.append(scores[index])
+        scores = np.array(new_scores)
+
+    # wohlg: original version only returned Spearman
+    # wohlg: we added Pearson and other information
+    result = {'spearmanr': scipy.stats.spearmanr(scores, y).correlation,
+              'pearsonr':  scipy.stats.pearsonr(scores, y)[0],
+              'num_oov_word_pairs': len(word_pair_oov_indices),
+              'num_found_words': found_words,
+              'num_missing_words': missing_words,
+              'num_oov_created': oov_vecs_created,
+              'y.shape': y.shape
+              }
+
+    if include_structured_sources:
+        result['wordnet_oov'] = wordnet_oov
+
+    return result
 
 
 def evaluate_on_all(w):
