@@ -430,34 +430,23 @@ def evaluate_similarity(w, X, y,
         pairs = X
 
     # alexpulich:
-    wordnet_oov = 0
+
     if include_structured_sources:
-        from pythainlp.corpus import wordnet
-        wn_scores = []
-        for index, pair in enumerate(pairs):
-            w1 = wordnet.synsets(pair[0])
-            w2 = wordnet.synsets(pair[1])
-            if len(w1) > 0 and len(w2) > 0:
-                path = wordnet.path_similarity(w1[0], w2[0])
-                wn_scores.append(path)
-            else:
-                wn_scores.append(None)
-                if len(w1) == 0:
-                    wordnet_oov += 1
-                if len(w2) == 0:
-                    wordnet_oov += 1
 
-        wn_mean = np.mean(np.array([wn_score for wn_score in wn_scores if wn_score is not None]))
-        new_scores = []
-        for index, pair in enumerate(pairs):
-            if wn_scores[index] is None:
-                path = wn_mean
-            else:
-                path = wn_scores[index]
+        wn_scores, wordnet_oov_pairs = compute_wordnet_path_scores(pairs)
 
-            new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
+        scores = method1(scores, pairs, wn_scores, structed_sources_coef)
 
-        scores = np.array(new_scores)
+        # new_scores = []
+        # for index, pair in enumerate(pairs):
+        #     if wn_scores[index] is None:
+        #         path = wn_mean
+        #     else:
+        #         path = wn_scores[index]
+
+        #     new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
+
+        # scores = np.array(new_scores)
 
     # wohlg: original version only returned Spearman
     # wohlg: we added Pearson and other information
@@ -471,9 +460,50 @@ def evaluate_similarity(w, X, y,
               }
 
     if include_structured_sources:
-        result['wordnet_oov'] = wordnet_oov
+        result['wordnet_oov_pairs'] = wordnet_oov_pairs
 
     return result
+
+def compute_wordnet_path_scores(pairs):
+    """
+        
+    """
+    print("DEBUG: starting compute_wordnet_path_scores")
+    from pythainlp.corpus import wordnet
+
+    wordnet_oov_pairs = 0 # wohlg: we count word pairs for which we have no path 
+    wn_scores = []
+
+    for index, pair in enumerate(pairs):
+        w1 = wordnet.synsets(pair[0])
+        w2 = wordnet.synsets(pair[1])
+        if len(w1) > 0 and len(w2) > 0:
+            path = wordnet.path_similarity(w1[0], w2[0])
+            wn_scores.append(path)
+        else:
+            wn_scores.append(None)
+            wordnet_oov_pairs += 1
+
+    return wn_scores, wordnet_oov_pairs
+
+
+
+def method1(scores, pairs, wn_scores, structed_sources_coef):
+
+    wn_mean = np.mean(np.array([wn_score for wn_score in wn_scores if wn_score is not None]))
+
+    new_scores = []
+    for index, pair in enumerate(pairs):
+        if wn_scores[index] is None:
+            path = wn_mean
+        else:
+            path = wn_scores[index]
+
+        new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
+
+    return np.array(new_scores)
+
+
 
 
 def evaluate_on_all(w):

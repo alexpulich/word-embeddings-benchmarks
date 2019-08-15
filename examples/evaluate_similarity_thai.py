@@ -7,6 +7,7 @@ import logging, sys
 import numpy as np
 import scipy.stats
 from six import iteritems
+from pprint import pprint
 from web.datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999
 from web.datasets.similarity import fetch_TWS65, fetch_thai_wordsim353, fetch_thai_semeval2017_task2, \
     fetch_thai_simlex999
@@ -63,7 +64,7 @@ for name, data in iteritems(tasks):
     print("\n", "NEW TASK:", name)
     if INCLUDE_STRUCTED_INFO:
         results = []
-        for coef in np.arange(0.05, 1.0, 0.05):
+        for coef in np.arange(0.00, 1.05, 0.05):
             result = evaluate_similarity(w, data.X, data.y,
                                          tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT,
                                          filter_not_found=FILTER_NOT_FOUND,
@@ -76,16 +77,18 @@ for name, data in iteritems(tasks):
                 result['hm'] = -999  ## undefined
             results.append(result)
 
+        pprint(results)
         result = max(results, key=lambda x: x['hm'])
         hm = result['hm']
         print('BEST COEF: {}'.format(result['coef']))
-        print('WORDNET OOV : {}'.format(result['wordnet_oov']))
+        print('WORDNET OOV : {}'.format(result['wordnet_oov_pairs']))
 
     else:
-        result = evaluate_similarity(w, data.X, data.y, tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT,
+        result = evaluate_similarity(w, data.X, data.y, 
+                                     tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT,
                                      filter_not_found=FILTER_NOT_FOUND,
                                      include_structured_sources=INCLUDE_STRUCTED_INFO,
-                                     structed_sources_coef=coef)
+                                     structed_sources_coef=None)
 
         try:
             hm = scipy.stats.hmean([result['spearmanr'], result['pearsonr']])

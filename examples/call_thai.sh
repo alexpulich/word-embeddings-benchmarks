@@ -11,16 +11,16 @@ EMB=$1
 ################################################################################################################################
 
 ## basic evaluation, OOV words will be represented by average vector of all words in the model
-python evaluate_similarity_thai.py $EMB  word2vec False False 
+python3 evaluate_similarity_thai.py $EMB  word2vec False False False
 
 ## OOV words will be tokenized with deepcut, and the word is represented by the average of in-vocabulary components
-python evaluate_similarity_thai.py $EMB  word2vec True False 
+python3 evaluate_similarity_thai.py $EMB  word2vec True False 
 
 # ## completely remove OOV words 
-python evaluate_similarity_thai.py $EMB  word2vec False True 
+python3 evaluate_similarity_thai.py $EMB  word2vec False True 
 # 
 # ## first apply deepcut, for the rest of OOV words: remove them
-python evaluate_similarity_thai.py $EMB  word2vec True True 
+python3 evaluate_similarity_thai.py $EMB  word2vec True True 
 
 exit
 
