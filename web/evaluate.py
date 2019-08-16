@@ -3,6 +3,7 @@
  Evaluation functions
 """
 import logging
+import math
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from .datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999, fetch_MTurk, fetch_RG65, fetch_RW, fetch_TR9856
@@ -477,6 +478,80 @@ def compute_wordnet_path_scores(pairs):
             wordnet_oov_pairs += 1
 
     return wn_scores, wordnet_oov_pairs
+
+def compute_mahtab_scores(pairs):
+    """
+        Based on https://aclweb.org/anthology/S17-2040
+        Section: 3.2   
+
+        # TODO Alexey: maybe there is an implementation of this and we don't have to implement ourselves!
+        # See in https://aclweb.org/anthology/S17-2040 and in https://www.aclweb.org/anthology/S16-1091
+
+    """
+
+    from pythainlp.corpus import wordnet
+
+    wordnet_oov_pairs = 0 # wohlg: we count word pairs for which we have no path 
+    mahtab_scores = []
+    current_score = None
+
+    for index, pair in enumerate(pairs):
+
+        w1 = wordnet.synsets(pair[0])
+        w2 = wordnet.synsets(pair[1])
+
+        if len(w1) > 0 and len(w2) > 0:
+
+            # remark Gerhard: we check for current_score==-1 just to check that we didn't set the score
+
+            # *** Step 1: "If two words are exactly the same or are two different writing forms of one word or belong to the same synset, the distance will be zero (D(x,y)=0)." ***
+
+            ## words are the sam
+            if pair[0] == pair[1]: 
+                current_score = 0 
+                continue
+
+            ## "are two different writing forms of one word" -- Gerhard: don't know how to handle this -> skip?!
+            
+            ## "belong to the same synset"
+            s1 = wordnet.synsets(pair[0])
+            s2 = wordnet.synsets(pair[0])
+            # TODO: check that there is an otherlapping synset
+
+            # *** Step 2: "If two words have more than four common senses in their corresponding synsets, the distance will be one (D(x, y) =1)" ***
+            # TODO: Compute sets of senses of synsets of both words, and then see if set intersection has more than 4 elements
+         
+
+            # *** Step 3: "If there is a direct or two-level hypernym relation between the corresponding synsets of words, the distance will be two (D(x, y) =2)." ***
+
+            # *** Step 4: "If two words share any common sense, the distance will be three (D(x, y) =3)" ***
+
+            # *** Step 5: "If two words are derivationally related, the distance will be four (D(x, y) =4)." ***       
+            ## What does that mean??? ## maybe explained in https://www.aclweb.org/anthology/S16-1091
+
+            ## Additional less strict rules
+            # *** Step 6: "1. If there is any relation except hypernym between synsets of two words, the distance will be three (D(x, y) =3)." ***
+            # *** Step 7: "2. If there is any two-links relation except hypernym between synsets of two words, the distance will be four (D(x, y) =4)." ***       
+            # *** Step 8: "3. If there is any three-links relation between synsets of two words, the distance will be five (D(x, y) =5)." ***       
+            # *** Step 9: "After all, if no relation is found between a pair of word to measure the distance between them, the distance will set to -1 a" ***       
+            current_score = -1 
+
+            # *** Step 10: "the distance will set to -1 and then we calculate similarity score using equation 1 introduced by(Rychalska et al., 2016):" ***       
+            # see Equation (1) in the paper, We set alpha to 0.25 and beta to 1 as these values seemed to yield the best results
+            if current_score < 0:
+                mahtab_scores.append(0)
+            else:
+                s = math.exp(-0.25 * current_score)
+                mahtab_scores.append(s)
+                # TODO .. test if formula works correctly
+           
+            # if Alexey is ambitionious he can have a look at BabelNet as well, but I think it's not necessary 
+            
+        else:
+            mahtab_scores.append(None)
+            wordnet_oov_pairs += 1
+
+    return mahtab_scores, wordnet_oov_pairs
 
 
 
