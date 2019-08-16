@@ -435,18 +435,7 @@ def evaluate_similarity(w, X, y,
 
         wn_scores, wordnet_oov_pairs = compute_wordnet_path_scores(pairs)
 
-        scores = method1(scores, pairs, wn_scores, structed_sources_coef)
-
-        # new_scores = []
-        # for index, pair in enumerate(pairs):
-        #     if wn_scores[index] is None:
-        #         path = wn_mean
-        #     else:
-        #         path = wn_scores[index]
-
-        #     new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
-
-        # scores = np.array(new_scores)
+        scores = method1(list(scores), pairs, wn_scores, structed_sources_coef)
 
     # wohlg: original version only returned Spearman
     # wohlg: we added Pearson and other information
@@ -479,6 +468,9 @@ def compute_wordnet_path_scores(pairs):
         w2 = wordnet.synsets(pair[1])
         if len(w1) > 0 and len(w2) > 0:
             path = wordnet.path_similarity(w1[0], w2[0])
+            #path = wordnet.lch_similarity(w1[0], w2[0]) ## we can't use it, requires the same part-of-speech for both words
+            #path = wordnet.wup_similarity(w1[0], w2[0])
+
             wn_scores.append(path)
         else:
             wn_scores.append(None)
@@ -491,11 +483,42 @@ def compute_wordnet_path_scores(pairs):
 def method1(scores, pairs, wn_scores, structed_sources_coef):
 
     wn_mean = np.mean(np.array([wn_score for wn_score in wn_scores if wn_score is not None]))
+    print("method1: avg path similarity:", wn_mean)
 
     new_scores = []
     for index, pair in enumerate(pairs):
         if wn_scores[index] is None:
             path = wn_mean
+        else:
+            path = wn_scores[index]
+
+        new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
+
+    return np.array(new_scores)
+
+def method2(scores, pairs, wn_scores, structed_sources_coef):
+
+
+    data = np.stack((scores,wn_scores), axis=1)
+
+    ## scale to mean==0, stddev==1
+    from sklearn.preprocessing import StandardScaler
+    sc = StandardScaler()
+    scaled_data = sc.fit_transform(data)
+
+    scores = list(scaled_data[:,0])
+    wn_scores =  list(scaled_data[:,1])
+
+    ## cleanup: replace nan with None
+    scores =     [i if not np.isnan(i) else None for i in scores]
+    wn_scores =  [i if not np.isnan(i) else None for i in wn_scores]
+
+    new_scores = []
+    for index, pair in enumerate(pairs):
+
+        if wn_scores[index] is None: 
+            # path = wn_mean
+            path = scores[index] # keep the scores index for both parts!!
         else:
             path = wn_scores[index]
 
