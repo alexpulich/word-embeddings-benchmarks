@@ -64,9 +64,7 @@ for name, data in iteritems(tasks):
     print("\n", "NEW TASK:", name)
     if INCLUDE_STRUCTED_INFO:
         results = []
-        coef = 0.00
-        if True:
-        #for coef in np.arange(0.00, 1.05, 0.05):
+        for coef in np.arange(0.00, 1.05, 0.05):
             result = evaluate_similarity(w, data.X, data.y,
                                          tokenize_oov_words_with_deepcut=TOKENIZE_OOV_WORDS_WITH_DEEPCUT,
                                          filter_not_found=FILTER_NOT_FOUND,

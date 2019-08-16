@@ -430,13 +430,12 @@ def evaluate_similarity(w, X, y,
         scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
         pairs = X
 
-    # alexpulich:
-
+    # alexpulich / wohlg:
     if include_structured_sources:
-
         wn_scores, wordnet_oov_pairs = compute_wordnet_path_scores(pairs)
-
-        scores = method1(list(scores), pairs, wn_scores, structed_sources_coef)
+        ## wordnet_method1 or wordnet_method2: currently hardcoded, can be refactored if needed :)
+        scores = wordnet_method1(list(scores), pairs, wn_scores, structed_sources_coef)
+        #scores = wordnet_method2(list(scores), pairs, wn_scores, structed_sources_coef)
 
     # wohlg: original version only returned Spearman
     # wohlg: we added Pearson and other information
@@ -471,7 +470,6 @@ def compute_wordnet_path_scores(pairs):
             path = wordnet.path_similarity(w1[0], w2[0])
             #path = wordnet.lch_similarity(w1[0], w2[0]) ## we can't use it, requires the same part-of-speech for both words
             #path = wordnet.wup_similarity(w1[0], w2[0])
-
             wn_scores.append(path)
         else:
             wn_scores.append(None)
@@ -555,10 +553,10 @@ def compute_mahtab_scores(pairs):
 
 
 
-def method1(scores, pairs, wn_scores, structed_sources_coef):
+def wordnet_method1(scores, pairs, wn_scores, structed_sources_coef):
 
     wn_mean = np.mean(np.array([wn_score for wn_score in wn_scores if wn_score is not None]))
-    print("method1: avg path similarity:", wn_mean)
+    print("wordnet_method1: avg path similarity:", wn_mean)
 
     new_scores = []
     for index, pair in enumerate(pairs):
@@ -571,8 +569,8 @@ def method1(scores, pairs, wn_scores, structed_sources_coef):
 
     return np.array(new_scores)
 
-def method2(scores, pairs, wn_scores, structed_sources_coef):
-
+def wordnet_method2(scores, pairs, wn_scores, structed_sources_coef):
+    print("using wordnet_method2")
 
     data = np.stack((scores,wn_scores), axis=1)
 
