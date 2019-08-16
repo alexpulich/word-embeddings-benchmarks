@@ -455,7 +455,13 @@ def evaluate_similarity(w, X, y,
 
 def compute_wordnet_path_scores(pairs):
     """
-        
+        Compute WordNet path similarity for a list of input word pairs
+        Note: Thai WordNet has 3 methods to compute a similarity value: wordnet.path_similarity, wordnet.lch_similarity, wordnet.wup_similarity
+            lch_similarity we can't use. path_similarity seems to have better results than wup_similarity
+
+        If we don't find a path between the two works, we add "None" to the result list
+
+        @returns: this list of simility scores, and the number of OOV-word-pairs
     """
     print("DEBUG: starting compute_wordnet_path_scores")
     from pythainlp.corpus import wordnet
@@ -554,6 +560,11 @@ def compute_mahtab_scores(pairs):
 
 
 def wordnet_method1(scores, pairs, wn_scores, structed_sources_coef):
+    """
+        Method 1 for the combination of WE and WN scores
+        Basic idea: have a coefficient to weight the influence of the two components
+        If we don't have a path similarity for a word pair, we use the average path_similarity.
+    """
 
     wn_mean = np.mean(np.array([wn_score for wn_score in wn_scores if wn_score is not None]))
     print("wordnet_method1: avg path similarity:", wn_mean)
@@ -570,6 +581,14 @@ def wordnet_method1(scores, pairs, wn_scores, structed_sources_coef):
     return np.array(new_scores)
 
 def wordnet_method2(scores, pairs, wn_scores, structed_sources_coef):
+    """
+        Method 2 for the combination of WE and WN scores
+        Basic idea: have a coefficient to weight the influence of the two components
+        If we don't have a path similarity for a word pair, we use only WE similarity 
+        Here we transform both the list WE-scores and WN-scores to have mean==0, stddev==1 
+            -- in order to have them on the same scale when combining them
+    """
+ 
     print("using wordnet_method2")
 
     data = np.stack((scores,wn_scores), axis=1)
