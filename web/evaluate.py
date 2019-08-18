@@ -438,8 +438,8 @@ def evaluate_similarity(w, X, y,
     if include_structured_sources:
         wn_scores, wordnet_oov_pairs = compute_wordnet_path_scores(pairs)
         ## wordnet_method1 or wordnet_method2: currently hardcoded, can be refactored if needed :)
-        #scores = wordnet_method1(list(scores), pairs, wn_scores, structed_sources_coef)
-        scores = wordnet_method2(list(scores), pairs, wn_scores, structed_sources_coef)
+        scores = wordnet_method1(list(scores), pairs, wn_scores, structed_sources_coef)
+        #scores = wordnet_method2(list(scores), pairs, wn_scores, structed_sources_coef)
 
     # wohlg: original version only returned Spearman
     # wohlg: we added Pearson and other information
