@@ -17,6 +17,10 @@ import deepcut # wohlg .. for Thai tokenization
 
 logger = logging.getLogger(__name__)
 
+# wohlg
+#WORDNET_PATH_SIMILARITY_TYPE='first_synset'
+WORDNET_PATH_SIMILARITY_TYPE='most_similar'
+
 def calculate_purity(y_true, y_pred):
     """
     Calculate purity for given true and predicted cluster labels.
@@ -434,8 +438,8 @@ def evaluate_similarity(w, X, y,
     if include_structured_sources:
         wn_scores, wordnet_oov_pairs = compute_wordnet_path_scores(pairs)
         ## wordnet_method1 or wordnet_method2: currently hardcoded, can be refactored if needed :)
-        scores = wordnet_method1(list(scores), pairs, wn_scores, structed_sources_coef)
-        #scores = wordnet_method2(list(scores), pairs, wn_scores, structed_sources_coef)
+        #scores = wordnet_method1(list(scores), pairs, wn_scores, structed_sources_coef)
+        scores = wordnet_method2(list(scores), pairs, wn_scores, structed_sources_coef)
 
     # wohlg: original version only returned Spearman
     # wohlg: we added Pearson and other information
@@ -470,12 +474,23 @@ def compute_wordnet_path_scores(pairs):
     wn_scores = []
 
     for index, pair in enumerate(pairs):
+        
         w1 = wordnet.synsets(pair[0])
         w2 = wordnet.synsets(pair[1])
+
         if len(w1) > 0 and len(w2) > 0:
-            path = wordnet.path_similarity(w1[0], w2[0])
-            #path = wordnet.lch_similarity(w1[0], w2[0]) ## we can't use it, requires the same part-of-speech for both words
-            #path = wordnet.wup_similarity(w1[0], w2[0])
+            if WORDNET_PATH_SIMILARITY_TYPE == 'first_synset': # just use the first synset of each term
+                path = wordnet.path_similarity(w1[0], w2[0])
+                #path = wordnet.lch_similarity(w1[0], w2[0]) ## we can't use it, requires the same part-of-speech for both words
+                #path = wordnet.wup_similarity(w1[0], w2[0])
+            elif WORDNET_PATH_SIMILARITY_TYPE=='most_similar': # return the highest sim between all synset combinations          
+                path = -1
+                for syn1 in w1:
+                    for syn2 in w2: 
+                        tmppath = wordnet.path_similarity(syn1,syn2)
+                        if tmppath and tmppath > path: path = tmppath
+                if path==-1: path = None # if no path found, set back to None
+
             wn_scores.append(path)
         else:
             wn_scores.append(None)
