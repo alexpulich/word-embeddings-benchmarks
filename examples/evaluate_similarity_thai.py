@@ -81,7 +81,7 @@ for name, data in iteritems(tasks):
         result = max(results, key=lambda x: x['hm'])
         hm = result['hm']
         print('BEST COEF: {}'.format(result['coef']))
-        print('WORDNET OOV : {}'.format(result['wordnet_oov_pairs']))
+        print('WORDNET OOV : {}'.format(result['structed_oov_pairs']))
 
     else:
         result = evaluate_similarity(w, data.X, data.y, 

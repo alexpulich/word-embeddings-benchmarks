@@ -2,24 +2,25 @@
 """
  Evaluation functions
 """
-import logging
 import math
-import numpy as np
 from sklearn.cluster import AgglomerativeClustering, KMeans
-from .datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999, fetch_MTurk, fetch_RG65, fetch_RW, fetch_TR9856
+from .datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999, fetch_MTurk, fetch_RG65, fetch_RW, \
+    fetch_TR9856
 from .datasets.categorization import fetch_AP, fetch_battig, fetch_BLESS, fetch_ESSLI_1a, fetch_ESSLI_2b, \
     fetch_ESSLI_2c
 from web.analogy import *
 from six import iteritems
 from pprint import pprint
 from web.embedding import Embedding
-import deepcut # wohlg .. for Thai tokenization
+import deepcut  # wohlg .. for Thai tokenization
+from .conceptnet import get_similarity, get_similarity_from_dict
 
 logger = logging.getLogger(__name__)
 
 # wohlg
-#WORDNET_PATH_SIMILARITY_TYPE='first_synset'
-WORDNET_PATH_SIMILARITY_TYPE='most_similar'
+# WORDNET_PATH_SIMILARITY_TYPE='first_synset'
+WORDNET_PATH_SIMILARITY_TYPE = 'most_similar'
+
 
 def calculate_purity(y_true, y_pred):
     """
@@ -119,7 +120,6 @@ def evaluate_categorization(w, X, y, method="all", seed=None):
         best_purity = max(purity, best_purity)
 
     return best_purity
-
 
 
 def evaluate_on_semeval_2012_2(w):
@@ -308,7 +308,7 @@ def evaluate_on_WordRep(w, max_pairs=1000, solver_kwargs={}):
 def evaluate_similarity(w, X, y,
                         tokenize_oov_words_with_deepcut=False,
                         filter_not_found=False,
-                        include_structured_sources=False,
+                        include_structured_sources=None,
                         structed_sources_coef=0):
     """
     Calculate Spearman correlation between cosine similarity of the model
@@ -316,7 +316,7 @@ def evaluate_similarity(w, X, y,
 
     Parameters
     ----------
-    w : Embedding or dict
+
       Embedding or dict instance.
 
     X: array, shape: (n_samples, 2)
@@ -331,6 +331,12 @@ def evaluate_similarity(w, X, y,
     filter_not_found:
         remove a word pair if one of the words was not found in the embedding vocabulary
 
+    include_structured_sources:
+        include using structed source. None or name
+
+    structed_sources_coef:
+        weight for structed source
+
     Returns
     -------
     cor: float
@@ -344,7 +350,6 @@ def evaluate_similarity(w, X, y,
     word_pair_oov_indices = []
     info_oov_words = {}
     info_created_words = {}
-
 
     words = w.vocabulary.word_id
 
@@ -367,8 +372,8 @@ def evaluate_similarity(w, X, y,
             ## if we found word-parts in the emb - use their vectors (avg) to represent the OOV word
             if in_voc_tokens:
                 token_vecs = [w.get(t) for t in in_voc_tokens]
-                w[ds_word] = np.mean(token_vecs,axis=0)
-                #print("Created vector for OOV word:", ds_word)
+                w[ds_word] = np.mean(token_vecs, axis=0)
+                # print("Created vector for OOV word:", ds_word)
                 oov_vecs_created += 1
                 info_created_words[ds_word] = in_voc_tokens
             else:
@@ -378,7 +383,6 @@ def evaluate_similarity(w, X, y,
         pprint(info_oov_words)
         print('All "created"/replaced words by deepcut:')
         pprint(info_created_words)
-
 
     ## For all words in the datasets, check if the are OOV?
     ## Indices of word-pairs with a OOV word are stored in word_pair_oov_indices
@@ -399,17 +403,18 @@ def evaluate_similarity(w, X, y,
 
     if missing_words > 0 or oov_vecs_created > 0:
         logger.warning("Missing {} words. Will replace them with mean vector".format(missing_words))
-        logger.warning("OOV words {} created from their subwords. Will replace them with mean vector of sub-tokens".format(oov_vecs_created))
+        logger.warning(
+            "OOV words {} created from their subwords. Will replace them with mean vector of sub-tokens".format(
+                oov_vecs_created))
         logger.warning("Found {} words.".format(found_words))
 
     print('X.shape', X.shape)
     print('y.shape', y.shape)
 
-
     if filter_not_found:
         # added code by wohlg
         new_X = np.delete(X, word_pair_oov_indices, 0)
-        #print(new_X)
+        # print(new_X)
         new_y = np.delete(y, word_pair_oov_indices)
 
         print('new_X.shape', new_X.shape)
@@ -419,8 +424,8 @@ def evaluate_similarity(w, X, y,
         A = np.vstack(w.get(word, mean_vector) for word in new_X[:, 0])
         B = np.vstack(w.get(word, mean_vector) for word in new_X[:, 1])
         print(len(A), len(B))
-        print(type(A),type(B))
-        scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
+        print(type(A), type(B))
+        scores = np.array([v1.dot(v2.T) / (np.linalg.norm(v1) * np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
 
         y = new_y
         pairs = new_X
@@ -431,20 +436,25 @@ def evaluate_similarity(w, X, y,
 
         A = np.vstack(w.get(word, mean_vector) for word in X[:, 0])
         B = np.vstack(w.get(word, mean_vector) for word in X[:, 1])
-        scores = np.array([v1.dot(v2.T)/(np.linalg.norm(v1)*np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
+        scores = np.array([v1.dot(v2.T) / (np.linalg.norm(v1) * np.linalg.norm(v2)) for v1, v2 in zip(A, B)])
         pairs = X
 
     # alexpulich / wohlg:
-    if include_structured_sources:
-        wn_scores, wordnet_oov_pairs = compute_wordnet_path_scores(pairs)
+    if include_structured_sources == 'wn':
+        wn_scores, structed_oov_pairs = compute_wordnet_path_scores(pairs)
         ## wordnet_method1 or wordnet_method2: currently hardcoded, can be refactored if needed :)
         scores = wordnet_method1(list(scores), pairs, wn_scores, structed_sources_coef)
-        #scores = wordnet_method2(list(scores), pairs, wn_scores, structed_sources_coef)
+        # scores = wordnet_method2(list(scores), pairs, wn_scores, structed_sources_coef)
+    elif include_structured_sources == 'cn':
+        cn_scores, structed_oov_pairs = compute_conceptnet_path_scores(pairs)
+        # scores = conceptnet_method1(list(scores), pairs, cn_scores, structed_sources_coef)
+        scores = conceptnet_method2(list(scores), pairs, cn_scores, structed_sources_coef)
+
 
     # wohlg: original version only returned Spearman
     # wohlg: we added Pearson and other information
     result = {'spearmanr': scipy.stats.spearmanr(scores, y).correlation,
-              'pearsonr':  scipy.stats.pearsonr(scores, y)[0],
+              'pearsonr': scipy.stats.pearsonr(scores, y)[0],
               'num_oov_word_pairs': len(word_pair_oov_indices),
               'num_found_words': found_words,
               'num_missing_words': missing_words,
@@ -453,9 +463,93 @@ def evaluate_similarity(w, X, y,
               }
 
     if include_structured_sources:
-        result['wordnet_oov_pairs'] = wordnet_oov_pairs
+        result['structed_oov_pairs'] = structed_oov_pairs
 
     return result
+
+
+def compute_conceptnet_path_scores(pairs):
+    """
+            Compute ConceptNet path similarity for a list of input word pairs
+
+            If we don't find a path between the two works, we add "None" to the result list
+
+            @returns: this list of simility scores, and the number of OOV-word-pairs
+        """
+
+    oov_pairs = 0  # we count word pairs for which we have no path
+    scores = []
+    import pickle
+    with open('../conceptnet.pickle', 'rb') as f:
+        model = pickle.load(f)
+    for index, pair in enumerate(pairs):
+        score = get_similarity_from_dict(model, pair[0], pair[1])
+        scores.append(score)
+        if score is None:
+            oov_pairs += 1
+
+    return scores, oov_pairs
+
+def conceptnet_method1(scores, pairs, cn_scores, structed_sources_coef):
+    """
+        Method for the combination of WE and CN scores
+        Basic idea: have a coefficient to weight the influence of the two components
+        If we don't have a path similarity for a word pair, we use the average path_similarity.
+    """
+
+    cn_mean = np.mean(np.array([cn_score for cn_score in cn_scores if cn_score is not None]))
+    print("conceptnet_method: avg path similarity:", cn_mean)
+
+    new_scores = []
+    for index, pair in enumerate(pairs):
+        if cn_scores[index] is None:
+            path = cn_mean
+        else:
+            path = cn_scores[index]
+
+        new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
+
+    return np.array(new_scores)
+
+
+def conceptnet_method2(scores, pairs, cn_scores, structed_sources_coef):
+    """
+        Method 2 for the combination of WE and CN scores
+        Basic idea: have a coefficient to weight the influence of the two components
+        If we don't have a path similarity for a word pair, we use only WE similarity
+        Here we transform both the list WE-scores and WC-scores to have mean==0, stddev==1
+            -- in order to have them on the same scale when combining them
+    """
+
+    print("using wordnet_method2")
+
+    data = np.stack((scores, cn_scores), axis=1)
+
+    ## scale to mean==0, stddev==1
+    from sklearn.preprocessing import StandardScaler
+    sc = StandardScaler()
+    scaled_data = sc.fit_transform(data)
+
+    scores = list(scaled_data[:, 0])
+    cn_scores = list(scaled_data[:, 1])
+
+    ## cleanup: replace nan with None
+    scores = [i if not np.isnan(i) else None for i in scores]
+    cn_scores = [i if not np.isnan(i) else None for i in cn_scores]
+
+    new_scores = []
+    for index, pair in enumerate(pairs):
+
+        if cn_scores[index] is None:
+            # path = wn_mean
+            path = scores[index]  # keep the scores index for both parts!!
+        else:
+            path = cn_scores[index]
+
+        new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
+
+    return np.array(new_scores)
+
 
 def compute_wordnet_path_scores(pairs):
     """
@@ -470,33 +564,34 @@ def compute_wordnet_path_scores(pairs):
     print("DEBUG: starting compute_wordnet_path_scores")
     from pythainlp.corpus import wordnet
 
-    wordnet_oov_pairs = 0 # wohlg: we count word pairs for which we have no path 
+    structed_oov_pairs = 0  # wohlg: we count word pairs for which we have no path
     wn_scores = []
 
     for index, pair in enumerate(pairs):
-        
+
         w1 = wordnet.synsets(pair[0])
         w2 = wordnet.synsets(pair[1])
 
         if len(w1) > 0 and len(w2) > 0:
-            if WORDNET_PATH_SIMILARITY_TYPE == 'first_synset': # just use the first synset of each term
+            if WORDNET_PATH_SIMILARITY_TYPE == 'first_synset':  # just use the first synset of each term
                 path = wordnet.path_similarity(w1[0], w2[0])
-                #path = wordnet.lch_similarity(w1[0], w2[0]) ## we can't use it, requires the same part-of-speech for both words
-                #path = wordnet.wup_similarity(w1[0], w2[0])
-            elif WORDNET_PATH_SIMILARITY_TYPE=='most_similar': # return the highest sim between all synset combinations          
+                # path = wordnet.lch_similarity(w1[0], w2[0]) ## we can't use it, requires the same part-of-speech for both words
+                # path = wordnet.wup_similarity(w1[0], w2[0])
+            elif WORDNET_PATH_SIMILARITY_TYPE == 'most_similar':  # return the highest sim between all synset combinations
                 path = -1
                 for syn1 in w1:
-                    for syn2 in w2: 
-                        tmppath = wordnet.path_similarity(syn1,syn2)
+                    for syn2 in w2:
+                        tmppath = wordnet.path_similarity(syn1, syn2)
                         if tmppath and tmppath > path: path = tmppath
-                if path==-1: path = None # if no path found, set back to None
+                if path == -1: path = None  # if no path found, set back to None
 
             wn_scores.append(path)
         else:
             wn_scores.append(None)
-            wordnet_oov_pairs += 1
+            structed_oov_pairs += 1
 
-    return wn_scores, wordnet_oov_pairs
+    return wn_scores, structed_oov_pairs
+
 
 def compute_mahtab_scores(pairs):
     """
@@ -510,7 +605,7 @@ def compute_mahtab_scores(pairs):
 
     from pythainlp.corpus import wordnet
 
-    wordnet_oov_pairs = 0 # wohlg: we count word pairs for which we have no path 
+    structed_oov_pairs = 0  # wohlg: we count word pairs for which we have no path
     mahtab_scores = []
     current_score = None
 
@@ -526,12 +621,12 @@ def compute_mahtab_scores(pairs):
             # *** Step 1: "If two words are exactly the same or are two different writing forms of one word or belong to the same synset, the distance will be zero (D(x,y)=0)." ***
 
             ## words are the sam
-            if pair[0] == pair[1]: 
-                current_score = 0 
+            if pair[0] == pair[1]:
+                current_score = 0
                 continue
 
             ## "are two different writing forms of one word" -- Gerhard: don't know how to handle this -> skip?!
-            
+
             ## "belong to the same synset"
             s1 = wordnet.synsets(pair[0])
             s2 = wordnet.synsets(pair[0])
@@ -539,7 +634,6 @@ def compute_mahtab_scores(pairs):
 
             # *** Step 2: "If two words have more than four common senses in their corresponding synsets, the distance will be one (D(x, y) =1)" ***
             # TODO: Compute sets of senses of synsets of both words, and then see if set intersection has more than 4 elements
-         
 
             # *** Step 3: "If there is a direct or two-level hypernym relation between the corresponding synsets of words, the distance will be two (D(x, y) =2)." ***
 
@@ -553,7 +647,7 @@ def compute_mahtab_scores(pairs):
             # *** Step 7: "2. If there is any two-links relation except hypernym between synsets of two words, the distance will be four (D(x, y) =4)." ***       
             # *** Step 8: "3. If there is any three-links relation between synsets of two words, the distance will be five (D(x, y) =5)." ***       
             # *** Step 9: "After all, if no relation is found between a pair of word to measure the distance between them, the distance will set to -1 a" ***       
-            current_score = -1 
+            current_score = -1
 
             # *** Step 10: "the distance will set to -1 and then we calculate similarity score using equation 1 introduced by(Rychalska et al., 2016):" ***       
             # see Equation (1) in the paper, We set alpha to 0.25 and beta to 1 as these values seemed to yield the best results
@@ -563,15 +657,14 @@ def compute_mahtab_scores(pairs):
                 s = math.exp(-0.25 * current_score)
                 mahtab_scores.append(s)
                 # TODO .. test if formula works correctly
-           
+
             # if Alexey is ambitionious he can have a look at BabelNet as well, but I think it's not necessary 
-            
+
         else:
             mahtab_scores.append(None)
-            wordnet_oov_pairs += 1
+            structed_oov_pairs += 1
 
-    return mahtab_scores, wordnet_oov_pairs
-
+    return mahtab_scores, structed_oov_pairs
 
 
 def wordnet_method1(scores, pairs, wn_scores, structed_sources_coef):
@@ -581,7 +674,9 @@ def wordnet_method1(scores, pairs, wn_scores, structed_sources_coef):
         If we don't have a path similarity for a word pair, we use the average path_similarity.
     """
 
-    wn_mean = np.mean(np.array([wn_score for wn_score in wn_scores if wn_score is not None]))
+    wn_mean = np.mean(np.array(
+        [wn_score for wn_score in wn_scores if wn_score is not None]
+    ))
     print("wordnet_method1: avg path similarity:", wn_mean)
 
     new_scores = []
@@ -595,6 +690,7 @@ def wordnet_method1(scores, pairs, wn_scores, structed_sources_coef):
 
     return np.array(new_scores)
 
+
 def wordnet_method2(scores, pairs, wn_scores, structed_sources_coef):
     """
         Method 2 for the combination of WE and WN scores
@@ -603,37 +699,35 @@ def wordnet_method2(scores, pairs, wn_scores, structed_sources_coef):
         Here we transform both the list WE-scores and WN-scores to have mean==0, stddev==1 
             -- in order to have them on the same scale when combining them
     """
- 
+
     print("using wordnet_method2")
 
-    data = np.stack((scores,wn_scores), axis=1)
+    data = np.stack((scores, wn_scores), axis=1)
 
     ## scale to mean==0, stddev==1
     from sklearn.preprocessing import StandardScaler
     sc = StandardScaler()
     scaled_data = sc.fit_transform(data)
 
-    scores = list(scaled_data[:,0])
-    wn_scores =  list(scaled_data[:,1])
+    scores = list(scaled_data[:, 0])
+    wn_scores = list(scaled_data[:, 1])
 
     ## cleanup: replace nan with None
-    scores =     [i if not np.isnan(i) else None for i in scores]
-    wn_scores =  [i if not np.isnan(i) else None for i in wn_scores]
+    scores = [i if not np.isnan(i) else None for i in scores]
+    wn_scores = [i if not np.isnan(i) else None for i in wn_scores]
 
     new_scores = []
     for index, pair in enumerate(pairs):
 
-        if wn_scores[index] is None: 
+        if wn_scores[index] is None:
             # path = wn_mean
-            path = scores[index] # keep the scores index for both parts!!
+            path = scores[index]  # keep the scores index for both parts!!
         else:
             path = wn_scores[index]
 
         new_scores.append(structed_sources_coef * scores[index] + (1 - structed_sources_coef) * path)
 
     return np.array(new_scores)
-
-
 
 
 def evaluate_on_all(w):
