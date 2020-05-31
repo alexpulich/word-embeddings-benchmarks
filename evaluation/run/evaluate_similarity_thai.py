@@ -77,7 +77,8 @@ class ThaiEvaluation:
                            tokenize_oov_with_deepcut: bool,
                            filter_not_found: bool):
         results = []
-        for coef in np.arange(0.00, 1.05, 0.05):
+        # for coef in np.arange(0.00, 1.05, 0.05):
+        for coef in np.arange(0.00, 1.1, 0.1):
             if struct_info == self.CONCEPTNET and self.numberbatch is None:
                 self.numberbatch = ConceptNetNumberbatch()
             result = evaluate_similarity(self.w, data.X, data.y,

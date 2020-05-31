@@ -13,7 +13,7 @@ from six import iteritems
 from pprint import pprint
 from web.embedding import Embedding
 import deepcut  # wohlg .. for Thai tokenization
-from .conceptnet import get_similarity, get_similarity_from_dict
+from .conceptnet import get_similarity, get_similarity_from_dict, ConceptNetNumberbatch
 
 logger = logging.getLogger(__name__)
 
@@ -309,14 +309,16 @@ def evaluate_similarity(w, X, y,
                         tokenize_oov_words_with_deepcut=False,
                         filter_not_found=False,
                         include_structured_sources=None,
-                        structed_sources_coef=0):
+                        cut_letters_for_oov=False,
+                        structed_sources_coef=0,
+                        numberbatch=None):
     """
     Calculate Spearman correlation between cosine similarity of the model
     and human rated similarity of word pairs
 
     Parameters
     ----------
-
+    w : Embedding or dict
       Embedding or dict instance.
 
     X: array, shape: (n_samples, 2)
@@ -384,6 +386,40 @@ def evaluate_similarity(w, X, y,
         print('All "created"/replaced words by deepcut:')
         pprint(info_created_words)
 
+    elif cut_letters_for_oov:
+        oov_words = set()
+
+        #collecting oov words
+        for query in X:
+            for query_word in query:
+                if query_word not in words:
+                    oov_words.add(query_word)
+
+        #iterating through each oov-word
+        for oov_word in oov_words:
+            cut_word = oov_word
+            words_with_same_prefix = set()
+
+            # cutting letter by letter until we find some words with the same prefix
+            while len(cut_word) and cut_word not in words:
+                cut_word = cut_word[:-1]
+
+                # collectings words with the same prefix
+                for vocabulary_word in w:
+                    if vocabulary_word[0].startswith(cut_word):
+                        words_with_same_prefix.add(vocabulary_word[0])
+
+                # if found at least one word, then stop cutting and let's compute the avg vector
+                if len(words_with_same_prefix):
+                    break
+            print(f'FOR WORD {oov_word} FOUND WORDS WITH THE SAME PREFIX: {str(words_with_same_prefix)}')
+            if words_with_same_prefix:
+                token_vecs = [w.get(t) for t in words_with_same_prefix]
+                w[oov_word] = np.mean(token_vecs, axis=0)
+                oov_vecs_created += 1
+                info_created_words[oov_word] = cut_word
+
+
     ## For all words in the datasets, check if the are OOV?
     ## Indices of word-pairs with a OOV word are stored in word_pair_oov_indices
     for query in X:
@@ -446,9 +482,10 @@ def evaluate_similarity(w, X, y,
         scores = wordnet_method1(list(scores), pairs, wn_scores, structed_sources_coef)
         # scores = wordnet_method2(list(scores), pairs, wn_scores, structed_sources_coef)
     elif include_structured_sources == 'cn':
-        cn_scores, structed_oov_pairs = compute_conceptnet_path_scores(pairs)
-        # scores = conceptnet_method1(list(scores), pairs, cn_scores, structed_sources_coef)
-        scores = conceptnet_method2(list(scores), pairs, cn_scores, structed_sources_coef)
+        #should comment, if don't want to use numberbatch
+        cn_scores, structed_oov_pairs = compute_conceptnet_path_scores(pairs, numberbatch)
+        scores = conceptnet_method1(list(scores), pairs, cn_scores, structed_sources_coef)
+        # scores = conceptnet_method2(list(scores), pairs, cn_scores, structed_sources_coef)
 
 
     # wohlg: original version only returned Spearman
@@ -468,7 +505,7 @@ def evaluate_similarity(w, X, y,
     return result
 
 
-def compute_conceptnet_path_scores(pairs):
+def compute_conceptnet_path_scores(pairs, numberbatch=None):
     """
             Compute ConceptNet path similarity for a list of input word pairs
 
@@ -479,14 +516,21 @@ def compute_conceptnet_path_scores(pairs):
 
     oov_pairs = 0  # we count word pairs for which we have no path
     scores = []
-    import pickle
-    with open('../conceptnet.pickle', 'rb') as f:
-        model = pickle.load(f)
-    for index, pair in enumerate(pairs):
-        score = get_similarity_from_dict(model, pair[0], pair[1])
-        scores.append(score)
-        if score is None:
-            oov_pairs += 1
+    if not numberbatch:
+        import pickle
+        with open('../conceptnet.pickle', 'rb') as f:
+            model = pickle.load(f)
+        for index, pair in enumerate(pairs):
+            score = get_similarity_from_dict(model, pair[0], pair[1])
+            scores.append(score)
+            if score is None:
+                oov_pairs += 1
+    else:
+        for index, pair in enumerate(pairs):
+            score = numberbatch.get_similarity(pair[0], pair[1])
+            scores.append(score)
+            if score is None:
+                oov_pairs += 1
 
     return scores, oov_pairs
 
