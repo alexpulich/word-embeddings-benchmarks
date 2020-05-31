@@ -15,6 +15,7 @@ from web.datasets.similarity import (
     fetch_thai_simlex999
 )
 from web.embeddings import load_embedding
+from web.conceptnet import ConceptNetNumberbatch
 from web.evaluate import evaluate_similarity
 from sklearn.datasets.base import Bunch
 
@@ -41,6 +42,8 @@ class ThaiEvaluation:
 
         self._fetch_tasks()
         self._load_embeddings()
+
+        self.numberbatch = None
 
     def _fetch_tasks(self):
         self.tasks = {
@@ -75,11 +78,15 @@ class ThaiEvaluation:
                            filter_not_found: bool):
         results = []
         for coef in np.arange(0.00, 1.05, 0.05):
+            if struct_info == self.CONCEPTNET and self.numberbatch is None:
+                self.numberbatch = ConceptNetNumberbatch()
             result = evaluate_similarity(self.w, data.X, data.y,
                                          tokenize_oov_words_with_deepcut=tokenize_oov_with_deepcut,
                                          filter_not_found=filter_not_found,
                                          include_structured_sources=struct_info,
-                                         structed_sources_coef=coef)
+                                         structed_sources_coef=coef,
+                                         numberbatch=self.numberbatch
+                                         )
             result['coef'] = coef
             try:
                 result['hm'] = scipy.stats.hmean([result['spearmanr'], result['pearsonr']])
@@ -98,11 +105,13 @@ class ThaiEvaluation:
                              data: Bunch,
                              struct_info: str,
                              tokenize_oov_with_deepcut: bool,
+                             cut_letters_for_oov: bool,
                              filter_not_found: bool):
         result = evaluate_similarity(self.w, data.X, data.y,
                                      tokenize_oov_words_with_deepcut=tokenize_oov_with_deepcut,
                                      filter_not_found=filter_not_found,
                                      include_structured_sources=struct_info,
+                                     cut_letters_for_oov=cut_letters_for_oov,
                                      structed_sources_coef=None)
 
         try:
@@ -154,6 +163,7 @@ class ThaiEvaluation:
 
     def evaluate(self,
                  tokenize_oov_with_deepcut: bool,
+                 cut_letters_for_oov: bool,
                  filter_not_found: bool,
                  struct_info: str
                  ):
@@ -166,7 +176,7 @@ class ThaiEvaluation:
             if struct_info:
                 result, hm = self._evaluate_structed(data, struct_info, tokenize_oov_with_deepcut, filter_not_found)
             else:
-                result, hm = self._evaluate_unstructed(data, struct_info, tokenize_oov_with_deepcut, filter_not_found)
+                result, hm = self._evaluate_unstructed(data, struct_info, tokenize_oov_with_deepcut, cut_letters_for_oov, filter_not_found)
 
             self._print_report(name, hm, result)
 
